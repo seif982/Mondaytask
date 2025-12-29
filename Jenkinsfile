@@ -1,20 +1,33 @@
 pipeline {
     agent any
+    environment {
+        APP_NAME='hello.py'
+        REPO_URL='https://github.com/seif982/Mondaytask.git'
+    }
 
     stages {
-        stage('Checkout') {
+        stage('Getting Repo files') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/seif982/Mondaytask.git',
-                    credentialsId: 'github'
+                git branch: "${GIT_BRANCH}", credentialsId: 'github', url: "${REPO_URL}"
             }
         }
-
-        stage('Run Hello World') {
+        stage('Build Docker Image') {
             steps {
-                sh 'ls -l'
-                sh 'chmod +x hello.sh'
-                sh './hello.sh'
+                script {
+                    // Build Docker image
+                    sh 'docker build -t ${APP_NAME}:${BUILD_NUMBER} .'
+                }
+            }
+        }
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // Run Docker image with build number in container name
+                    sh """
+                        docker run -p 5000:5000 --name "${APP_NAME}"-"${GIT_BRANCH}"-${BUILD_NUMBER} -d ${APP_NAME}:${BUILD_NUMBER}
+                        docker ps
+                    """
+                }
             }
         }
     }
