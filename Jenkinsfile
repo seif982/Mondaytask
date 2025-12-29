@@ -5,7 +5,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/MohamedMagdy840/jenkins-repo.git',
+                    url: 'https://github.com/seif982/Mondaytask.git',
                     credentialsId: 'github'
             }
         }
