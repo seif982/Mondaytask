@@ -6,17 +6,10 @@ pipeline {
     }
 
     stages {
-        stage('Getting Repo files') {
-            steps {
-                // تأكد أن credentialsId 'github' موجودة فعلاً في Jenkins
-                git branch: "main", url: "${REPO_URL}"
-            }
-        }
-        
         stage('Build Docker Image') {
             steps {
                 script {
-                    // استدعاء أداة Docker اللي عرفناها في الـ Tools
+                    // سطر استدعاء الأداة - لازم الاسم يطابق اللي كتبته في الـ Tools
                     def dockerTool = tool 'docker'
                     withEnv(["PATH+DOCKER=${dockerTool}/bin"]) {
                         sh "docker build -t ${APP_NAME}:${BUILD_NUMBER} ."
@@ -30,12 +23,13 @@ pipeline {
                 script {
                     def dockerTool = tool 'docker'
                     withEnv(["PATH+DOCKER=${dockerTool}/bin"]) {
-                        // استخدام double quotes "" للسماح لـ Groovy بالتعامل مع المتغيرات
                         sh """
+                            # مسح أي كونتينر قديم بنفس الاسم عشان ما يحصلش تعارض ports
+                            docker rm -f ${APP_NAME}-container || true
+                            
                             docker run -p 5000:5000 \
-                            --name ${APP_NAME}-${BUILD_NUMBER} \
+                            --name ${APP_NAME}-container \
                             -d ${APP_NAME}:${BUILD_NUMBER}
-                            docker ps
                         """
                     }
                 }
@@ -44,11 +38,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
+        success { echo 'Pipeline completed successfully!' }
+        failure { echo 'Pipeline failed!' }
     }
 }
