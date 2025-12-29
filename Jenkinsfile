@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        APP_NAME='hello.py'
+        APP_NAME='web-app'
         REPO_URL='https://github.com/seif982/Mondaytask.git'
     }
 
