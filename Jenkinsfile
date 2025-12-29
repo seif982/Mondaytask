@@ -2,16 +2,16 @@ pipeline {
     agent any
     environment {
         APP_NAME='hello.py'
-        REPO_URL='https://github.com/seif982/Mondaytask.git',
-     }
+        REPO_URL='https://github.com/seif982/Mondaytask.git'
+    }
 
     stages {
-       stage('Getting Repo files') {
+        stage('Getting Repo files') {
             steps {
                 git branch: "${GIT_BRANCH}", credentialsId: 'github', url: "${REPO_URL}"
             }
-       }
-     stage('Build Docker Image') {
+        }
+        stage('Build Docker Image') {
             steps {
                 script {
                     // Build Docker image
@@ -19,7 +19,7 @@ pipeline {
                 }
             }
         }
-    stage('Run Docker Container') {
+        stage('Run Docker Container') {
             steps {
                 script {
                     // Run Docker image with build number in container name
@@ -30,6 +30,7 @@ pipeline {
                 }
             }
         }
+    }
 
     post {
         success {
@@ -38,6 +39,3 @@ pipeline {
         failure {
             echo 'Pipeline failed!'
         }
-    }
-}
-}
