@@ -2,41 +2,60 @@ pipeline {
     agent any
     
     environment {
-        APP_NAME = 'web-app'
+        // 1. اسم التطبيق (لازم يطابق اسم الـ Repo في Docker Hub)
+        APP_NAME = 'web-app' 
+        
+        // 2. اسم المستخدم بتاعك على Docker Hub
+        DOCKER_HUB_USER = 'seif982' 
+        
+        // 3. المعرفات (IDs) اللي إنت عملتها في الـ Credentials بتاعة جنكينز
+        DOCKER_HUB_CREDS = 'docker-hub-creds'
+        GIT_CREDS_ID = 'github-push-creds'
+        
         REPO_URL = 'https://github.com/seif982/Mondaytask.git'
-        // تأكد من إنشاء هذه الـ Credentials في جنكينز كما شرحنا سابقاً
-        GIT_CREDS_ID = 'github-push-creds' 
     }
 
     stages {
-        stage('Checkout Code') {
-            steps {
-                git branch: 'main', url: "${REPO_URL}"
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    // استدعاء أداة Docker المعرفة في الـ Global Tool Configuration
                     def dockerTool = tool 'docker'
                     withEnv(["PATH+DOCKER=${dockerTool}/bin"]) {
+                        // بناء الصورة محلياً
                         sh "docker build -t ${APP_NAME}:${BUILD_NUMBER} ."
                     }
                 }
             }
         }
         
-        stage('Run Docker Container') {
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    def dockerTool = tool 'docker'
+                    withEnv(["PATH+DOCKER=${dockerTool}/bin"]) {
+                        withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDS}", 
+                                         passwordVariable: 'DOCKER_PASS', 
+                                         usernameVariable: 'DOCKER_USER')]) {
+                            
+                            // تسجيل الدخول والرفع
+                            sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                            sh "docker tag ${APP_NAME}:${BUILD_NUMBER} ${DOCKER_HUB_USER}/${APP_NAME}:${BUILD_NUMBER}"
+                            sh "docker tag ${APP_NAME}:${BUILD_NUMBER} ${DOCKER_HUB_USER}/${APP_NAME}:latest"
+                            sh "docker push ${DOCKER_HUB_USER}/${APP_NAME}:${BUILD_NUMBER}"
+                            sh "docker push ${DOCKER_HUB_USER}/${APP_NAME}:latest"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Locally') {
             steps {
                 script {
                     def dockerTool = tool 'docker'
                     withEnv(["PATH+DOCKER=${dockerTool}/bin"]) {
                         sh """
-                            # مسح أي كونتينر قديم بنفس الاسم لتجنب الخطأ
                             docker rm -f ${APP_NAME}-container || true
-                            
-                            # تشغيل الكونتينر الجديد على بورت 5000
                             docker run -d -p 5000:5000 --name ${APP_NAME}-container ${APP_NAME}:${BUILD_NUMBER}
                         """
                     }
@@ -46,37 +65,20 @@ pipeline {
 
         stage('Push Tag to GitHub') {
             steps {
-                // استخدام الـ Token اللي عملناه في الخطوة السابقة
                 withCredentials([usernamePassword(credentialsId: "${GIT_CREDS_ID}", 
                                  passwordVariable: 'GIT_TOKEN', 
                                  usernameVariable: 'GIT_USER')]) {
                     script {
                         sh """
-                            # إعدادات الـ Git (غير الإيميل والاسم لبياناتك)
-                            git config user.email "seif@example.com"
+                            git config user.email "seif7atem900@gmail.com"
                             git config user.name "seif982"
-                            
-                            # تحديث الـ URL ليشمل الـ Token للـ Authentication
                             git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/seif982/Mondaytask.git
-                            
-                            # إنشاء Tag برقم الـ Build
-                            git tag -a "v${BUILD_NUMBER}" -m "Stable Build ${BUILD_NUMBER} by Jenkins"
-                            
-                            # رفع الـ Tag لـ GitHub
+                            git tag -a "v${BUILD_NUMBER}" -m "Stable Build ${BUILD_NUMBER}"
                             git push origin --tags
                         """
                     }
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo "Successfully built, deployed, and tagged build #${BUILD_NUMBER}"
-        }
-        failure {
-            echo "Pipeline failed. Check Console Output for details."
         }
     }
 }
